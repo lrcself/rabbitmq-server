@@ -132,12 +132,8 @@ delete(VHostPath, ActingUser) ->
 purge_messages(VHost) ->
     VhostDir = msg_store_dir_path(VHost),
     rabbit_log:info("Deleting message store directory for vhost '~s' at '~s'~n", [VHost, VhostDir]),
-    %% Message store is stopped to close file handles
-    rabbit_variable_queue:stop_vhost_msg_store(VHost),
-    ok = rabbit_file:recursive_delete([VhostDir]),
-    %% Ensure the store is terminated even if it was restarted during the delete operation
-    %% above.
-    rabbit_variable_queue:stop_vhost_msg_store(VHost).
+    %% Message store should be closed when vhost supervisor is closed.
+    ok = rabbit_file:recursive_delete([VhostDir]).
 
 assert_benign(ok, _)                 -> ok;
 assert_benign({ok, _}, _)            -> ok;
@@ -165,6 +161,7 @@ internal_delete(VHostPath, ActingUser) ->
     Fs2 = [rabbit_policy:delete(VHostPath, proplists:get_value(name, Info), ActingUser)
            || Info <- rabbit_policy:list(VHostPath)],
     ok = mnesia:delete({rabbit_vhost, VHostPath}),
+    rabbit_vhost_sup_sup:stop_on_all_nodes(VHostPath),
     purge_messages(VHostPath),
     Fs1 ++ Fs2.
 

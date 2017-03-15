@@ -24,7 +24,7 @@
 
 -export([start_link/0, start/0]).
 -export([vhost_sup/1, vhost_sup/2]).
--export([start_vhost/1]).
+-export([start_vhost/1, stop_vhost/1, stop_on_all_nodes/1]).
 
 start() ->
     rabbit_sup:start_supervisor_child(?MODULE).
@@ -45,7 +45,29 @@ start_vhost(VHost) ->
             ok = save_vhost_pid(VHost, Pid),
             ok = rabbit_vhost:recover(VHost),
             {ok, Pid};
-        Other     -> Other
+        Other ->
+            Other
+    end.
+
+stop_vhost(VHost) ->
+    case vhost_pid(VHost) of
+        no_pid -> ok;
+        Pid when is_pid(Pid) ->
+            rabbit_log:error("Stopping vhost ~p with pid ~p~n", [VHost, Pid]),
+            supervisor2:terminate_child(?MODULE, Pid)
+    end.
+
+stop_on_all_nodes(VHost) ->
+%% TODO: failing nodes
+    [ ok = stop_vhost(VHost, Node) || Node <- rabbit_nodes:all_running() ],
+    ok.
+
+stop_vhost(VHost, Node) when Node == node(self()) ->
+    stop_vhost(VHost);
+stop_vhost(VHost, Node) ->
+    case rabbit_misc:rpc_call(Node, rabbit_vhost_sup_sup, stop_vhost, [VHost]) of
+        ok               -> ok;
+        {badrpc, RpcErr} -> {error, RpcErr}
     end.
 
 vhost_sup(VHost, Local) when Local == node(self()) ->
