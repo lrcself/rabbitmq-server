@@ -19,7 +19,7 @@
 -behaviour(supervisor2).
 
 -export([start_link/0, start_queue_process/3]).
--export([start_for_vhost/1, stop_for_vhost/1]).
+-export([start_for_vhost/1, stop_for_vhost/1, find_for_vhost/2]).
 
 -export([init/1]).
 
@@ -52,8 +52,10 @@ init([]) ->
 
 find_for_vhost(VHost, Node) ->
     {ok, VHostSup} = rabbit_vhost_sup_sup:vhost_sup(VHost, Node),
-    [QSup] = supervisor2:find_child(VHostSup, rabbit_amqqueue_sup_sup),
-    {ok, QSup}.
+    case supervisor2:find_child(VHostSup, rabbit_amqqueue_sup_sup) of
+        [QSup] -> {ok, QSup};
+        Result -> {error, {queue_supervisor_not_found, Result}}
+    end.
 
 start_for_vhost(VHost) ->
     {ok, VHostSup} = rabbit_vhost_sup_sup:vhost_sup(VHost),

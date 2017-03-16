@@ -58,7 +58,10 @@ start(VHost) ->
 
 stop(VHost) ->
     {ok, VHostSup} = rabbit_vhost_sup_sup:vhost_sup(VHost),
-    supervisor2:stop_child(VHostSup, ?MODULE).
+    case supervisor:terminate_child(VHostSup, ?MODULE) of
+        ok -> supervisor:delete_child(VHostSup, ?MODULE);
+        E  -> E
+    end.
 
 store(VHost, DirBaseName, Terms) ->
     dets:insert(VHost, {DirBaseName, Terms}).

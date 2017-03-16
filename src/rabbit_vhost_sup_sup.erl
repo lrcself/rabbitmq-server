@@ -82,15 +82,19 @@ vhost_sup(VHost, Node) ->
 
 -spec vhost_sup(rabbit_types:vhost()) -> {ok, pid()}.
 vhost_sup(VHost) ->
-    case vhost_pid(VHost) of
-        no_pid ->
-            case supervisor2:start_child(?MODULE, [VHost]) of
-                {ok, Pid}                       -> {ok, Pid};
-                {error, {already_started, Pid}} -> {ok, Pid};
-                Error                           -> throw(Error)
-            end;
-        Pid when is_pid(Pid) ->
-            {ok, Pid}
+    case rabbit_vhost:exists(VHost) of
+        false -> {error, {no_such_vhost, VHost}};
+        true  ->
+            case vhost_pid(VHost) of
+                no_pid ->
+                    case supervisor2:start_child(?MODULE, [VHost]) of
+                        {ok, Pid}                       -> {ok, Pid};
+                        {error, {already_started, Pid}} -> {ok, Pid};
+                        Error                           -> throw(Error)
+                    end;
+                Pid when is_pid(Pid) ->
+                    {ok, Pid}
+            end
     end.
 
 save_vhost_pid(VHost, Pid) ->

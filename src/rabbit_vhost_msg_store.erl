@@ -24,6 +24,7 @@
 start(VHost, Type, ClientRefs, StartupFunState) when is_list(ClientRefs);
                                                      ClientRefs == undefined  ->
     {ok, VHostSup} = rabbit_vhost_sup_sup:vhost_sup(VHost),
+rabbit_log:error("Starting message store ~p on supervisor ~p", [Type, VHostSup]),
     VHostDir = rabbit_vhost:msg_store_dir_path(VHost),
     supervisor2:start_child(VHostSup,
         {Type, {rabbit_msg_store, start_link,
@@ -32,6 +33,7 @@ start(VHost, Type, ClientRefs, StartupFunState) when is_list(ClientRefs);
 
 stop(VHost, Type) ->
     {ok, VHostSup} = rabbit_vhost_sup_sup:vhost_sup(VHost),
+rabbit_log:error("Stopping message store ~p on supervisor ~p", [Type, VHostSup]),
     ok = supervisor2:terminate_child(VHostSup, Type),
     ok = supervisor2:delete_child(VHostSup, Type).
 
